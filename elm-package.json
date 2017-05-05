@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "summary": "Type inference for Elm, written in Elm.",
-    "repository": "https://github.com/user/project.git",
+    "repository": "https://github.com/joonazan/elm-type-inference.git",
     "license": "BSD3",
     "source-directories": [
         "src"
