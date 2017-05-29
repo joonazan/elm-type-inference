@@ -1,8 +1,14 @@
 module Infer.Scheme exposing (..)
 
-{-| @docs Scheme, substitute, freeVariables
+{-|
+
+
+#
+
+@docs Scheme, substitute, freeVariables
 @docs Environment
 @docs freshTypevar, instantiate, generalize
+
 -}
 
 import Infer.Type as Type exposing (Type(..))

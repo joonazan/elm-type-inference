@@ -1,6 +1,12 @@
 module Infer.Expression exposing (..)
 
-{-| @docs Expression
+{-|
+
+
+#
+
+@docs Expression
+
 -}
 
 import Infer.Type exposing (Type)
