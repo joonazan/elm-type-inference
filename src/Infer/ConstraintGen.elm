@@ -58,23 +58,12 @@ generateConstraints environment exp =
                             (generateConstraints (extend environment name valueT) body)
                     )
 
-        If condition positive negative ->
-            map4
-                (\this ( cond, condC ) ( pos, posC ) ( neg, negC ) ->
-                    ( this
-                    , condC
-                        ++ posC
-                        ++ negC
-                        ++ [ ( cond, Type.bool )
-                           , ( this, pos )
-                           , ( this, neg )
-                           ]
+        Spy tag exp ->
+            generateConstraints environment exp
+                |> map
+                    (\( typ, constraints ) ->
+                        ( TAny tag, constraints ++ [ ( TAny tag, typ ) ] )
                     )
-                )
-                freshTypevar
-                (generateConstraints environment condition)
-                (generateConstraints environment positive)
-                (generateConstraints environment negative)
 
 
 variable : Environment -> String -> Monad Type

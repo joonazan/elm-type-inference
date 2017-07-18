@@ -13,11 +13,12 @@ import Infer.Type exposing (Type)
 
 
 {-| Translate your expressions to this type in order to be able to perform type inference on them.
+The Spy variant has no effect on type inference, but can be used to find the type of a subexpression.
 -}
 type Expression
-    = Lambda String Expression
+    = Literal Type
+    | Lambda String Expression
     | Call Expression Expression
-    | Name String
-    | Literal Type
     | Let String Expression Expression
-    | If Expression Expression Expression
+    | Name String
+    | Spy Int Expression
