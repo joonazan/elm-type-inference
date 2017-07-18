@@ -58,7 +58,7 @@ generateConstraints environment exp =
                             (generateConstraints (extend environment name valueT) body)
                     )
 
-        Spy tag exp ->
+        Spy exp tag ->
             generateConstraints environment exp
                 |> map
                     (\( typ, constraints ) ->

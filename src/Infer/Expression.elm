@@ -21,4 +21,4 @@ type Expression
     | Call Expression Expression
     | Let String Expression Expression
     | Name String
-    | Spy Int Expression
+    | Spy Expression Int
