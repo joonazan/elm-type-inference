@@ -5,7 +5,7 @@ module Infer.Monad exposing (..)
 
 # Construction
 
-@docs pure, Monad, fromResult
+@docs pure, err, Monad, fromResult
 
 
 # Mapping
@@ -33,6 +33,13 @@ type alias Monad a =
 pure : a -> Monad a
 pure x =
     State.state (Ok x)
+
+
+{-| Represents a failed computation.
+-}
+err : String -> Monad a
+err e =
+    State.state (Err e)
 
 
 {-| Un-specialize a Result.
