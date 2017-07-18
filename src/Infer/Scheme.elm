@@ -7,7 +7,7 @@ module Infer.Scheme exposing (..)
 
 @docs Scheme, substitute, freeVariables
 @docs Environment
-@docs freshTypevar, instantiate, generalize
+@docs freshInt, freshTypevar, instantiate, generalize
 
 -}
 
@@ -18,15 +18,18 @@ import Dict exposing (Dict)
 import Set exposing (Set)
 
 
-{-| Generates a type variable with the identifier one greater than the last.
+{-| Generates an int one greater than the last.
+-}
+freshInt : Infer.Monad Int
+freshInt =
+    State.advance (\state -> ( Ok state, state + 1 ))
+
+
+{-| freshInt wrapped in TAny
 -}
 freshTypevar : Infer.Monad Type
 freshTypevar =
-    let
-        nextId =
-            State.advance (\state -> ( state, state + 1 ))
-    in
-        State.map (Ok << TAny) nextId
+    Infer.map TAny freshInt
 
 
 {-| A type scheme represents a variable definition, for example a named function.
