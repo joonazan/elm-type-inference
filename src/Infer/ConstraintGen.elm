@@ -4,7 +4,6 @@ import Infer.Type as Type exposing (Type(..), ($))
 import Infer.Scheme exposing (Environment, Scheme, generalize, instantiate, freshTypevar)
 import Infer.Expression exposing (Expression(..))
 import Dict exposing (Dict)
-import State exposing (State)
 import Infer.Monad exposing (..)
 
 
@@ -62,7 +61,7 @@ generateConstraints environment exp =
             generateConstraints environment exp
                 |> map
                     (\( typ, constraints ) ->
-                        ( TAny tag, constraints ++ [ ( TAny tag, typ ) ] )
+                        ( typ, constraints ++ [ ( TAny tag, typ ) ] )
                     )
 
 
@@ -70,14 +69,8 @@ variable : Environment -> String -> Monad Type
 variable env name =
     Dict.get name env
         |> Result.fromMaybe ("variable " ++ name ++ " not found")
-        |> (\r ->
-                case r of
-                    Ok v ->
-                        instantiate v
-
-                    Err e ->
-                        State.state (Err e)
-           )
+        |> fromResult
+        |> andThen instantiate
 
 
 extendGeneralized : Environment -> String -> Type -> Environment

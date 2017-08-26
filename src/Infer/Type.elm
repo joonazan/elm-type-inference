@@ -46,7 +46,6 @@ import Set exposing (Set)
 type Type
     = TArrow Type Type
     | TRecord (Dict String Type)
-    | TUnion String (Dict String (List Type))
     | TTuple (List Type)
     | TOpaque String (List Type)
     | TAny Int
@@ -110,17 +109,6 @@ toString t =
                 |> String.join ", "
                 |> \x -> "{" ++ x ++ "}"
 
-        TUnion name options ->
-            Dict.toList options
-                |> List.map
-                    (\( name, types ) ->
-                        name
-                            :: List.map toString types
-                            |> String.join " "
-                    )
-                |> String.join " | "
-                |> (++) (name ++ " = ")
-
         TTuple types ->
             List.map toString types
                 |> String.join ","
@@ -145,11 +133,6 @@ variables t =
 
         TRecord d ->
             Dict.values d
-                |> variablesFromList
-
-        TUnion _ options ->
-            Dict.values options
-                |> List.concat
                 |> variablesFromList
 
         TTuple types ->
@@ -222,7 +205,7 @@ substituteMany s =
 bind : Int -> Type -> Result String (Dict Int Type)
 bind id x =
     if Set.member id (variables x) then
-        Err "recursive type"
+        Err ("recursive type" ++ Basics.toString id ++ toString x)
     else
         Ok <| Dict.singleton id x
 
@@ -266,5 +249,11 @@ substitute substitution t =
         TArrow h t ->
             TArrow (substitute substitution h) (substitute substitution t)
 
-        x ->
-            x
+        TOpaque name types ->
+            TOpaque name <| List.map (substitute substitution) types
+
+        TTuple types ->
+            TTuple <| List.map (substitute substitution) types
+
+        TRecord fields ->
+            TRecord <| Dict.map (always <| substitute substitution) fields
