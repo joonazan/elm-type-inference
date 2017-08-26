@@ -23,13 +23,13 @@ types env exp s =
 {-| Returns a computation that yields the type of the input expression
 with the specified environment.
 -}
-typeOf : Environment -> Expression -> Infer.Monad Type
+typeOf : Environment -> Expression -> Infer.Monad ( Type, Type -> Type )
 typeOf env exp =
     generateConstraints env exp
         |> Infer.andThen
             (\( t, cs ) ->
                 solve Dict.empty cs
-                    |> Result.map (\s -> Type.substitute s t)
+                    |> Result.map (\s -> ( Type.substitute s t, Type.substitute s ))
                     |> Infer.fromResult
             )
 
