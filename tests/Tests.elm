@@ -3,10 +3,16 @@ module Tests exposing (all)
 import Test exposing (..)
 import Expect
 import Infer.Type as Type exposing (Type(..))
-import Infer exposing (typeOf)
+import Infer
 import Infer.Expression exposing (Expression(..))
 import Infer.Monad as Infer
 import Dict
+
+
+typeOf env exp =
+    Infer.typeOf env exp
+        |> Infer.finalValue 0
+        |> Result.map Tuple.first
 
 
 all : Test
@@ -31,9 +37,8 @@ typeInference =
                 (Ok <| TArrow Type.int (TArrow Type.int Type.int))
         , test "trivial inference" <|
             equal
-                (typeOf Dict.empty (Literal Type.string) |> Infer.finalValue 0)
-            <|
-                Ok Type.string
+                (typeOf Dict.empty (Literal Type.string))
+                (Ok Type.string)
         , test "identity construction" <|
             equal
                 (typeOf
@@ -43,7 +48,6 @@ typeInference =
                             (Literal Type.string)
                         )
                     )
-                    |> Infer.finalValue 0
                 )
             <|
                 Ok Type.string
@@ -57,20 +61,37 @@ typeInference =
                         )
                         (Literal Type.string)
                     )
-                    |> Infer.finalValue 0
                 )
             <|
                 Ok Type.string
         , test "let binding" <|
             equal
                 (typeOf
-                    (Dict.empty)
+                    Dict.empty
                     (Let "x"
                         (Literal Type.string)
                         (Name "x")
                     )
-                    |> Infer.finalValue 0
                 )
             <|
                 Ok Type.string
+        , test "recursive type error when there should be none" <|
+            equal
+                (typeOf
+                    (Dict.fromList
+                        [ ( "if"
+                          , ( [ 1 ]
+                            , (TArrow Type.bool <|
+                                TArrow (TAny 1) <|
+                                    TArrow (TAny 1) (TAny 1)
+                              )
+                            )
+                          )
+                        , ( "+", ( [ 1 ], TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1) ) )
+                        ]
+                    )
+                    (Call (Call (Call (Name "if") (Literal Type.bool)) (Name "+")) (Name "+"))
+                )
+            <|
+                Ok (TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1))
         ]
