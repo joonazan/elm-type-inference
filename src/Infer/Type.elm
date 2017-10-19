@@ -55,35 +55,35 @@ type Type
 -}
 string : Type
 string =
-    TOpaque "String" []
+    TOpaque ".String" []
 
 
 {-| Char
 -}
 char : Type
 char =
-    TOpaque "Char" []
+    TOpaque ".Char" []
 
 
 {-| Bool
 -}
 bool : Type
 bool =
-    TOpaque "Bool" []
+    TOpaque ".Bool" []
 
 
 {-| Int
 -}
 int : Type
 int =
-    TOpaque "Int" []
+    TOpaque ".Int" []
 
 
 {-| Float
 -}
 float : Type
 float =
-    TOpaque "Float" []
+    TOpaque ".Float" []
 
 
 {-| Textual representation of a type
@@ -205,7 +205,7 @@ substituteMany s =
 bind : Int -> Type -> Result String (Dict Int Type)
 bind id x =
     if Set.member id (variables x) then
-        Err ("recursive type" ++ Basics.toString id ++ toString x)
+        Err ("recursive type " ++ Basics.toString id ++ " " ++ toString x)
     else
         Ok <| Dict.singleton id x
 
