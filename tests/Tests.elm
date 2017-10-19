@@ -6,6 +6,7 @@ import Infer.Type as Type exposing (Type(..))
 import Infer
 import Infer.Expression exposing (Expression(..))
 import Infer.Monad as Infer
+import Infer.Scheme exposing (generalize, instantiate)
 import Dict
 
 
@@ -76,22 +77,31 @@ typeInference =
             <|
                 Ok Type.string
         , test "recursive type error when there should be none" <|
-            equal
-                (typeOf
-                    (Dict.fromList
-                        [ ( "if"
-                          , ( [ 1 ]
-                            , (TArrow Type.bool <|
-                                TArrow (TAny 1) <|
-                                    TArrow (TAny 1) (TAny 1)
+            let
+                arith =
+                    ( [ 1 ], TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1) )
+            in
+                equal
+                    (typeOf
+                        (Dict.fromList
+                            [ ( "if"
+                              , ( [ 1 ]
+                                , (TArrow Type.bool <|
+                                    TArrow (TAny 1) <|
+                                        TArrow (TAny 1) (TAny 1)
+                                  )
+                                )
                               )
+                            , ( "+", arith )
+                            ]
+                        )
+                        (Call (Call (Call (Name "if") (Literal Type.bool)) (Name "+")) (Name "+"))
+                        |> Result.andThen
+                            (generalize Dict.empty
+                                >> instantiate
+                                >> Infer.finalValue 1
                             )
-                          )
-                        , ( "+", ( [ 1 ], TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1) ) )
-                        ]
                     )
-                    (Call (Call (Call (Name "if") (Literal Type.bool)) (Name "+")) (Name "+"))
-                )
-            <|
-                Ok (TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1))
+                <|
+                    Ok (Tuple.second arith)
         ]

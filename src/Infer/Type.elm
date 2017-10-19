@@ -204,7 +204,9 @@ substituteMany s =
 
 bind : Int -> Type -> Result String (Dict Int Type)
 bind id x =
-    if Set.member id (variables x) then
+    if x == TAny id then
+        Ok Dict.empty
+    else if Set.member id (variables x) then
         Err ("recursive type " ++ Basics.toString id ++ " " ++ toString x)
     else
         Ok <| Dict.singleton id x
