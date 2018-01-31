@@ -181,25 +181,16 @@ unify context content =
 
 unifyMany : List Type -> List Type -> Result String Substitution
 unifyMany context content =
-    case ( context, content ) of
-        ( [], [] ) ->
-            Ok Dict.empty
-
-        ( h1 :: t1, h2 :: t2 ) ->
-            unify h1 h2
-                |> Result.andThen
-                    (\sub1 ->
-                        unifyMany (substituteMany sub1 t1) (substituteMany sub1 t2)
-                            |> Result.map (flip ($) <| sub1)
+    List.map2 (,) context content
+        |> List.foldl
+            (\( a, b ) ->
+                Result.andThen
+                    (\s ->
+                        unify (substitute s a) (substitute s b)
+                            |> Result.map (\res -> res $ s)
                     )
-
-        _ ->
-            Err "unifyMany with differing list lengths"
-
-
-substituteMany : Substitution -> List Type -> List Type
-substituteMany s =
-    List.map (substitute s)
+            )
+            (Ok Dict.empty)
 
 
 bind : Int -> Type -> Result String (Dict Int Type)
