@@ -46,7 +46,6 @@ import Set exposing (Set)
 type Type
     = TArrow Type Type
     | TRecord (Dict String Type)
-    | TTuple (List Type)
     | TOpaque String (List Type)
     | TAny Int
 
@@ -91,6 +90,11 @@ float =
 toString : Type -> String
 toString t =
     case t of
+        TOpaque "Tuple" types ->
+            List.map toString types
+                |> String.join ","
+                |> brace
+
         TOpaque name args ->
             name
                 :: List.map toString args
@@ -108,11 +112,6 @@ toString t =
                 |> List.map (\( n, t ) -> n ++ " : " ++ toString t)
                 |> String.join ", "
                 |> \x -> "{" ++ x ++ "}"
-
-        TTuple types ->
-            List.map toString types
-                |> String.join ","
-                |> brace
 
 
 brace : String -> String
@@ -134,9 +133,6 @@ variables t =
         TRecord d ->
             Dict.values d
                 |> variablesFromList
-
-        TTuple types ->
-            variablesFromList types
 
         TOpaque _ args ->
             variablesFromList args
@@ -181,16 +177,19 @@ unify context content =
 
 unifyMany : List Type -> List Type -> Result String Substitution
 unifyMany context content =
-    List.map2 (,) context content
-        |> List.foldl
-            (\( a, b ) ->
-                Result.andThen
-                    (\s ->
-                        unify (substitute s a) (substitute s b)
-                            |> Result.map (\res -> res $ s)
-                    )
-            )
-            (Ok Dict.empty)
+    if List.length context /= List.length content then
+        Err "different amounts of arguments"
+    else
+        List.map2 (,) context content
+            |> List.foldl
+                (\( a, b ) ->
+                    Result.andThen
+                        (\s ->
+                            unify (substitute s a) (substitute s b)
+                                |> Result.map (\res -> res $ s)
+                        )
+                )
+                (Ok Dict.empty)
 
 
 bind : Int -> Type -> Result String (Dict Int Type)
@@ -244,9 +243,6 @@ substitute substitution t =
 
         TOpaque name types ->
             TOpaque name <| List.map (substitute substitution) types
-
-        TTuple types ->
-            TTuple <| List.map (substitute substitution) types
 
         TRecord fields ->
             TRecord <| Dict.map (always <| substitute substitution) fields
