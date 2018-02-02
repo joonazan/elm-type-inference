@@ -4,12 +4,13 @@ module Infer exposing (typeOf)
 @docs typeOf
 -}
 
-import Infer.Expression exposing (Expression)
-import Infer.ConstraintGen exposing (Constraint, generateConstraints)
-import Infer.Scheme exposing (Environment)
-import Infer.Type as Type exposing (Substitution, ($), Type)
-import Infer.Monad as Infer
 import Dict
+import Infer.Bindings as Bindings
+import Infer.ConstraintGen exposing (..)
+import Infer.Expression exposing (Expression(..))
+import Infer.Monad as Infer exposing (..)
+import Infer.Scheme exposing (Environment, Scheme, freshTypevar, generalize, instantiate)
+import Infer.Type as Type exposing (($), Substitution, Type(..), substitute)
 
 
 types : Environment -> Expression -> Int -> Bool
@@ -56,4 +57,100 @@ substituteConstraint substitution ( l, r ) =
         f =
             Type.substitute substitution
     in
-        ( f l, f r )
+    ( f l, f r )
+
+
+generateConstraints : Environment -> Expression -> Monad ( Type, List Constraint )
+generateConstraints environment exp =
+    case exp of
+        Name name ->
+            variable environment name
+                |> map (\x -> ( x, [] ))
+
+        Literal t ->
+            pure ( t, [] )
+
+        Call function argument ->
+            map3
+                (\this ( f, fc ) ( a, ac ) ->
+                    ( this
+                    , fc ++ ac ++ [ ( f, TArrow a this ) ]
+                    )
+                )
+                freshTypevar
+                (generateConstraints environment function)
+                (generateConstraints environment argument)
+
+        Lambda argument body ->
+            freshTypevar
+                |> andThen
+                    (\argType ->
+                        generateConstraints (extend environment argument argType) body
+                            |> map
+                                (\( bodyType, bodyCons ) ->
+                                    ( TArrow argType bodyType, bodyCons )
+                                )
+                    )
+
+        Let bindings body ->
+            Bindings.group bindings
+                |> List.foldl addBindingGroupToEnv (pure environment)
+                |> andThen
+                    (\env -> generateConstraints env body)
+
+        Spy exp tag ->
+            generateConstraints environment exp
+                |> map
+                    (\( typ, constraints ) ->
+                        ( typ, constraints ++ [ ( TAny tag, typ ) ] )
+                    )
+
+
+addBindingGroupToEnv : List ( String, Expression ) -> Monad Environment -> Monad Environment
+addBindingGroupToEnv bindings origEnv =
+    let
+        bindings_ =
+            List.map (\( n, e ) -> map (\tv -> ( n, e, tv )) freshTypevar) bindings
+                |> combine
+
+        extendedEnv =
+            andThen (List.foldl (\( n, _, tv ) -> map (\env -> extend env n tv)) origEnv) bindings_
+
+        typesAndConstraints =
+            map2
+                (\bin env ->
+                    bin
+                        |> List.map
+                            (\( _, e, tv ) ->
+                                map (\( t, cs ) -> ( t, ( tv, t ) :: cs )) <|
+                                    generateConstraints env e
+                            )
+                        |> combine
+                )
+                bindings_
+                extendedEnv
+                |> andThen identity
+
+        subs =
+            List.map Tuple.second
+                >> List.concat
+                >> solve Dict.empty
+                >> Infer.fromResult
+
+        nameAndType =
+            typesAndConstraints
+                |> andThen
+                    (\tcs ->
+                        subs tcs
+                            |> map
+                                (\subs ->
+                                    List.map Tuple.first tcs
+                                        |> List.map (substitute subs)
+                                        |> List.map2 (,) (List.map Tuple.first bindings)
+                                )
+                    )
+    in
+    map2
+        (List.foldl (\( n, t ) env -> Dict.insert n (generalize env t) env))
+        origEnv
+        nameAndType

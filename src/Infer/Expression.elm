@@ -19,6 +19,6 @@ type Expression
     = Literal Type
     | Lambda String Expression
     | Call Expression Expression
-    | Let String Expression Expression
+    | Let (List ( String, Expression )) Expression
     | Name String
     | Spy Expression Int
