@@ -1,7 +1,7 @@
 module Infer.Bindings exposing (group)
 
 import Dict exposing (Dict)
-import Infer.Expression exposing (Expression(Name))
+import Infer.Expression exposing (Expression(..))
 import List.Extra exposing (dropWhile, takeWhile)
 import Set exposing (Set)
 
@@ -34,7 +34,27 @@ group bindings_ =
 
 freeVariables : Expression -> Set String
 freeVariables e =
-    Set.empty
+    case e of
+        Name x ->
+            Set.singleton x
+
+        Lambda arg exp ->
+            freeVariables exp
+                |> Set.remove arg
+
+        Let bindings exp ->
+            List.map Tuple.first bindings
+                |> Set.fromList
+                |> Set.diff (freeVariables exp)
+
+        Call e1 e2 ->
+            Set.union (freeVariables e1) (freeVariables e2)
+
+        Literal _ ->
+            Set.empty
+
+        Spy exp _ ->
+            freeVariables exp
 
 
 stronglyConnected : List comparable -> Dict comparable (Set comparable) -> List (List comparable)

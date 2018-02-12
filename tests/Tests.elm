@@ -87,6 +87,25 @@ typeInference =
                     )
                 )
                 (Ok Type.string)
+        , test "mutual recursion with let" <|
+            equal
+                (typeOf
+                    testEnv
+                    (Let
+                        [ ( "f"
+                          , Lambda "x" <|
+                                if_ (Literal Type.bool)
+                                    (Call (Name "g") (Call (Call (Name "+") (Name "x")) (Name "x")))
+                                    (Literal Type.string)
+                          )
+                        , ( "g"
+                          , Name "f"
+                          )
+                        ]
+                        (Call (Name "f") <| Literal Type.int)
+                    )
+                )
+                (Ok Type.string)
         , test "polymorphic let" <|
             equal
                 (typeOf
@@ -131,6 +150,15 @@ typeInference =
                 )
             <|
                 Ok (Tuple.second arith)
+        , test "spies on lets should work" <|
+            equal
+                (Infer.typeOf (Dict.singleton "Just" ( [ 1 ], TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ]) )) (Let [ ( "x", Spy (Name "Just") 900 ) ] (Name "x"))
+                    |> Infer.finalValue 0
+                    |> Result.map Tuple.second
+                    |> Result.withDefault identity
+                    |> (\x -> x (TAny 900))
+                )
+                (TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ]))
         ]
 
 
