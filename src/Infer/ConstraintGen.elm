@@ -1,8 +1,8 @@
 module Infer.ConstraintGen exposing (..)
 
 import Dict exposing (Dict)
-import Infer.Expression exposing (Expression(..))
-import Infer.Monad exposing (..)
+import Infer.InternalMonad exposing (..)
+import Infer.Monad as External
 import Infer.Scheme exposing (Environment, Scheme, freshTypevar, generalize, instantiate)
 import Infer.Type as Type exposing (($), Type(..))
 
@@ -15,8 +15,9 @@ variable : Environment -> String -> Monad Type
 variable env name =
     Dict.get name env
         |> Result.fromMaybe ("variable " ++ name ++ " not found")
-        |> fromResult
-        |> andThen instantiate
+        |> External.fromResult
+        |> External.andThen instantiate
+        |> fromExternal
 
 
 extendGeneralized : Environment -> String -> Type -> Environment

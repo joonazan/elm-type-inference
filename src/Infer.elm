@@ -8,24 +8,25 @@ import Dict
 import Infer.Bindings as Bindings
 import Infer.ConstraintGen exposing (..)
 import Infer.Expression exposing (Expression(..))
-import Infer.Monad as Infer exposing (..)
-import Infer.Scheme exposing (Environment, Scheme, freshTypevar, generalize, instantiate)
+import Infer.InternalMonad exposing (..)
+import Infer.Monad as External
+import Infer.Scheme exposing (Environment, Scheme, generalize)
 import Infer.Type as Type exposing (($), Substitution, Type(..), substitute)
 
 
 {-| Returns a computation that yields the type of the input expression
 with the specified environment.
 -}
-typeOf : Environment -> Expression -> Infer.Monad ( Type, Type -> Type )
+typeOf : Environment -> Expression -> External.Monad ( Type, Type -> Type )
 typeOf env exp =
     generateConstraints env exp
-        |> Infer.andThen
+        |> andThen
             (\( t, cs ) ->
                 solve Dict.empty cs
                     |> Result.map (\s -> ( Type.substitute s t, s ))
-                    |> Infer.fromResult
+                    |> External.fromResult
             )
-        |> getSubstitution (\s ( t, s2 ) -> ( t, Type.substitute (Dict.union s s2) ))
+        |> External.map (Tuple.mapSecond (\s -> Type.substitute s))
 
 
 solve : Substitution -> List Constraint -> Result String Substitution
@@ -51,6 +52,11 @@ substituteConstraint substitution ( l, r ) =
             Type.substitute substitution
     in
         ( f l, f r )
+
+
+freshTypevar =
+    Infer.Scheme.freshTypevar
+        |> fromExternal
 
 
 generateConstraints : Environment -> Expression -> Monad ( Type, List Constraint )
@@ -128,7 +134,7 @@ addBindingGroupToEnv bindings origEnv =
             List.map Tuple.second
                 >> List.concat
                 >> solve Dict.empty
-                >> Infer.fromResult
+                >> fromResult
     in
         typesAndConstraints
             |> andThen
