@@ -22,7 +22,7 @@ import Set exposing (Set)
 -}
 freshInt : Infer.Monad Int
 freshInt =
-    State.advance (\state -> ( Ok state, state + 1 ))
+    State.advance (\state -> ( Ok ( state, Dict.empty ), state + 1 ))
 
 
 {-| freshInt wrapped in TAny

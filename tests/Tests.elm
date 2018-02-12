@@ -21,6 +21,24 @@ equal a b =
     \() -> Expect.equal a b
 
 
+variablesDiffer a b =
+    \() ->
+        Expect.true "parts other than type variables differ"
+            (Type.unify a b
+                |> Result.map (Dict.values >> List.all isTAny)
+                |> Result.withDefault False
+            )
+
+
+isTAny x =
+    case x of
+        TAny _ ->
+            True
+
+        _ ->
+            False
+
+
 typeInference : Test
 typeInference =
     describe "Type inference"
@@ -151,7 +169,7 @@ typeInference =
             <|
                 Ok (Tuple.second arith)
         , test "spies on lets should work" <|
-            equal
+            variablesDiffer
                 (Infer.typeOf (Dict.singleton "Just" ( [ 1 ], TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ]) )) (Let [ ( "x", Spy (Name "Just") 900 ) ] (Name "x"))
                     |> Infer.finalValue 0
                     |> Result.map Tuple.second

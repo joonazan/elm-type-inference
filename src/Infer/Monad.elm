@@ -5,7 +5,7 @@ module Infer.Monad exposing (..)
 
 # Construction
 
-@docs pure, err, Monad, fromResult
+@docs pure, err, Monad, fromResult, addSubstitution, getSubstitution
 
 
 # Mapping
@@ -20,19 +20,21 @@ module Infer.Monad exposing (..)
 -}
 
 import State exposing (State)
+import Dict
+import Infer.Type exposing (Substitution)
 
 
-{-| Represents a stateful computation that can fail.
+{-| A stateful computation that can fail and contains an extendable substitution.
 -}
 type alias Monad a =
-    State Int (Result String a)
+    State Int (Result String ( a, Substitution ))
 
 
 {-| Put a value into the monad. Will not advance the fresh name supply nor cause an error.
 -}
 pure : a -> Monad a
 pure x =
-    State.state (Ok x)
+    State.state (Ok ( x, Dict.empty ))
 
 
 {-| Represents a failed computation.
@@ -42,18 +44,40 @@ err e =
     State.state (Err e)
 
 
+{-| Store more substitutions in the monad
+-}
+addSubstitution : Substitution -> Monad a -> Monad a
+addSubstitution sub =
+    State.map <| Result.map <| Tuple.mapSecond <| Dict.union sub
+
+
+{-| update the value as a function of the current substitution
+-}
+getSubstitution : (Substitution -> a -> b) -> Monad a -> Monad b
+getSubstitution f =
+    State.map
+        (\m ->
+            case m of
+                Ok ( v, sub ) ->
+                    Ok ( f sub v, sub )
+
+                Err e ->
+                    Err e
+        )
+
+
 {-| Un-specialize a Result.
 -}
 fromResult : Result String a -> Monad a
 fromResult res =
-    State.state res
+    State.state <| Result.map (\x -> ( x, Dict.empty )) res
 
 
 {-| `map` for this particular monad.
 -}
 map : (a -> value) -> Monad a -> Monad value
 map f =
-    State.map (Result.map f)
+    State.map <| Result.map <| Tuple.mapFirst f
 
 
 {-| `andThen` for this particular monad.
@@ -63,8 +87,8 @@ andThen f =
     State.andThen
         (\r ->
             case r of
-                Ok v ->
-                    f v
+                Ok ( v, sub ) ->
+                    f v |> addSubstitution sub
 
                 Err e ->
                     State.state <| Err e
@@ -113,5 +137,6 @@ combine =
 {-| Computes the value of a computation.
 -}
 finalValue : Int -> Monad a -> Result String a
-finalValue =
-    State.finalValue
+finalValue s =
+    State.finalValue s
+        >> Result.map Tuple.first

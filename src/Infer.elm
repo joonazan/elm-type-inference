@@ -13,14 +13,6 @@ import Infer.Scheme exposing (Environment, Scheme, freshTypevar, generalize, ins
 import Infer.Type as Type exposing (($), Substitution, Type(..), substitute)
 
 
-types : Environment -> Expression -> Int -> Bool
-types env exp s =
-    typeOf env exp
-        |> Infer.finalValue s
-        |> Result.map (always True)
-        |> Result.withDefault False
-
-
 {-| Returns a computation that yields the type of the input expression
 with the specified environment.
 -}
@@ -30,9 +22,10 @@ typeOf env exp =
         |> Infer.andThen
             (\( t, cs ) ->
                 solve Dict.empty cs
-                    |> Result.map (\s -> ( Type.substitute s t, Type.substitute s ))
+                    |> Result.map (\s -> ( Type.substitute s t, s ))
                     |> Infer.fromResult
             )
+        |> getSubstitution (\s ( t, s2 ) -> ( t, Type.substitute (Dict.union s s2) ))
 
 
 solve : Substitution -> List Constraint -> Result String Substitution
@@ -136,20 +129,19 @@ addBindingGroupToEnv bindings origEnv =
                 >> List.concat
                 >> solve Dict.empty
                 >> Infer.fromResult
-
-        nameAndType =
-            typesAndConstraints
-                |> andThen
-                    (\tcs ->
-                        subs tcs
-                            |> map
-                                (\subs ->
-                                    List.map Tuple.first tcs
-                                        |> List.map (substitute subs)
-                                        |> List.map2 (,) (List.map Tuple.first bindings)
-                                )
-                    )
     in
-        map
-            (List.foldl (\( n, t ) env -> Dict.insert n (generalize env t) env) origEnv)
-            nameAndType
+        typesAndConstraints
+            |> andThen
+                (\tcs ->
+                    subs tcs
+                        |> andThen
+                            (\subs ->
+                                List.map Tuple.first tcs
+                                    |> List.map (substitute subs >> generalize origEnv)
+                                    |> List.map2 (,) (List.map Tuple.first bindings)
+                                    |> Dict.fromList
+                                    |> (\new -> Dict.union new origEnv)
+                                    |> pure
+                                    |> addSubstitution subs
+                            )
+                )
