@@ -57,7 +57,7 @@ substituteConstraint substitution ( l, r ) =
         f =
             Type.substitute substitution
     in
-    ( f l, f r )
+        ( f l, f r )
 
 
 generateConstraints : Environment -> Expression -> Monad ( Type, List Constraint )
@@ -94,7 +94,7 @@ generateConstraints environment exp =
 
         Let bindings body ->
             Bindings.group bindings
-                |> List.foldl addBindingGroupToEnv (pure environment)
+                |> List.foldl (addBindingGroupToEnv >> andThen) (pure environment)
                 |> andThen
                     (\env -> generateConstraints env body)
 
@@ -106,7 +106,7 @@ generateConstraints environment exp =
                     )
 
 
-addBindingGroupToEnv : List ( String, Expression ) -> Monad Environment -> Monad Environment
+addBindingGroupToEnv : List ( String, Expression ) -> Environment -> Monad Environment
 addBindingGroupToEnv bindings origEnv =
     let
         bindings_ =
@@ -114,7 +114,7 @@ addBindingGroupToEnv bindings origEnv =
                 |> combine
 
         extendedEnv =
-            andThen (List.foldl (\( n, _, tv ) -> map (\env -> extend env n tv)) origEnv) bindings_
+            map (List.foldl (\( n, _, tv ) env -> extend env n tv) origEnv) bindings_
 
         typesAndConstraints =
             map2
@@ -150,7 +150,6 @@ addBindingGroupToEnv bindings origEnv =
                                 )
                     )
     in
-    map2
-        (List.foldl (\( n, t ) env -> Dict.insert n (generalize env t) env))
-        origEnv
-        nameAndType
+        map
+            (List.foldl (\( n, t ) env -> Dict.insert n (generalize env t) env) origEnv)
+            nameAndType
