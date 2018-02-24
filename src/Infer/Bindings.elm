@@ -100,73 +100,50 @@ freeVariables e =
 stronglyConnected : List comparable -> Dict comparable (Set comparable) -> List (List comparable)
 stronglyConnected nodes neighbors =
     let
-        dfs v s p ( labeling, n, components ) =
-            let
-                ( s_, p_, ( labeling_, n_, components_ ) ) =
-                    Set.foldl
-                        (\w ( s, p, ( labeling, n, components ) ) ->
-                            case Dict.get w labeling of
-                                Nothing ->
-                                    dfs w s p ( labeling, n, components )
+        component n =
+            Set.intersect
+                (connected n neighbors)
+                (connected n (reverseDict neighbors))
 
-                                Just o ->
-                                    ( s
-                                    , if List.member w s then
-                                        dropWhile
-                                            (\x ->
-                                                Dict.get x labeling
-                                                    |> Maybe.map (\x -> x > o)
-                                                    |> Maybe.withDefault False
-                                            )
-                                            p
-                                      else
-                                        p
-                                    , ( labeling, n, components )
-                                    )
-                        )
-                        ( v :: s, v :: p, ( Dict.insert v n labeling, n + 1, components ) )
-                        (Dict.get v neighbors
-                            |> Maybe.withDefault Set.empty
-                        )
-            in
-                if List.head p_ == Just v then
-                    let
-                        ( newC, restS ) =
-                            pop v s_
-                    in
-                        ( restS, List.drop 1 p_, ( labeling_, n_, newC :: components_ ) )
-                else
-                    ( s_, p_, ( labeling_, n_, components_ ) )
-
-        ( _, _, components ) =
+        ( components, _ ) =
             List.foldl
-                (\v (( labeling, _, _ ) as state) ->
-                    if Dict.get v labeling == Nothing then
+                (\node ( components, used ) ->
+                    if not <| Set.member node used then
                         let
-                            ( _, _, state_ ) =
-                                dfs v [] [] state
+                            new =
+                                component node
                         in
-                            state_
+                            ( new :: components, Set.union new used )
                     else
-                        state
+                        ( components, used )
                 )
-                ( Dict.empty, 0, [] )
+                ( [], Set.empty )
                 nodes
     in
         components
+            |> List.map Set.toList
 
 
-{-| splits the list after the first occurence of x
--}
-pop : a -> List a -> ( List a, List a )
-pop x list =
-    case list of
-        h :: t ->
-            if h == x then
-                ( [ x ], t )
+connected : comparable -> Dict comparable (Set comparable) -> Set comparable
+connected node neighbors =
+    let
+        connected_ node visited =
+            if Set.member node visited then
+                visited
             else
-                pop x t
-                    |> Tuple.mapFirst ((::) h)
+                Dict.get node neighbors
+                    |> Maybe.withDefault Set.empty
+                    |> Set.foldl connected_ (Set.insert node visited)
+    in
+        connected_ node Set.empty
 
-        [] ->
-            ( [], [] )
+
+reverseDict : Dict comparable (Set comparable) -> Dict comparable (Set comparable)
+reverseDict dict =
+    let
+        addEntry ( k, v ) =
+            Dict.update k (Maybe.withDefault Set.empty >> Set.insert v >> Just)
+    in
+        Dict.toList dict
+            |> List.concatMap (\( k, vs ) -> List.map (\v -> ( v, k )) <| Set.toList vs)
+            |> List.foldl addEntry Dict.empty
