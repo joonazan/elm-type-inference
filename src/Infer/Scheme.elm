@@ -1,17 +1,17 @@
-module Infer.Scheme exposing (..)
+module Infer.Scheme exposing (Scheme, freeVariables, Environment, freshInt, instantiate, generalize)
 
 {-|
 
 
 #
 
-@docs Scheme, substitute, freeVariables
+@docs Scheme, freeVariables
 @docs Environment
-@docs freshInt, freshTypevar, instantiate, generalize
+@docs freshInt, instantiate, generalize
 
 -}
 
-import Infer.Type as Type exposing (Type(..))
+import Infer.Type as Type exposing (Type, RawType(..))
 import Infer.Monad as Infer
 import State
 import Dict exposing (Dict)
@@ -23,13 +23,6 @@ import Set exposing (Set)
 freshInt : Infer.Monad Int
 freshInt =
     State.advance (\state -> ( Ok state, state + 1 ))
-
-
-{-| freshInt wrapped in TAny
--}
-freshTypevar : Infer.Monad Type
-freshTypevar =
-    Infer.map TAny freshInt
 
 
 {-| A type scheme represents a variable definition, for example a named function.
@@ -45,11 +38,25 @@ type alias Scheme =
 variables for fresh ones.
 -}
 instantiate : Scheme -> Infer.Monad Type
-instantiate ( vars, t ) =
-    List.map (\v -> Infer.map ((,) v) freshTypevar) vars
+instantiate ( vars, ( constraints, _ ) as t ) =
+    List.map
+        (\var ->
+            Infer.map
+                (\x ->
+                    ( var
+                    , ( Dict.get var constraints
+                            |> Maybe.map (Dict.singleton x)
+                            |> Maybe.withDefault Dict.empty
+                      , TAny x
+                      )
+                    )
+                )
+                freshInt
+        )
+        vars
         |> Infer.combine
         |> Infer.map Dict.fromList
-        |> Infer.map (\s -> Type.substitute s t)
+        |> Infer.map (\sub -> Type.substitute sub t)
 
 
 {-| Holds all names defined in outer scopes.
@@ -58,11 +65,12 @@ type alias Environment =
     Dict String Scheme
 
 
-{-| Applies a substitution on a type scheme without touching the generic type vars
+
+{- Applies a substitution on a type scheme without touching the generic type vars
+   substitute : Type.Substitution -> Scheme -> Scheme
+   substitute s ( vars, t ) =
+   ( vars, Type.substitute (List.foldl Dict.remove s vars) t )
 -}
-substitute : Type.Substitution -> Scheme -> Scheme
-substitute s ( vars, t ) =
-    ( vars, Type.substitute (List.foldl Dict.remove s vars) t )
 
 
 {-| Converts a type into a type scheme that is generic over all the type variables
@@ -76,7 +84,7 @@ generalize env t =
                 |> List.foldl Set.union Set.empty
 
         inType =
-            Type.variables t
+            Type.variables <| Tuple.second t
 
         generic =
             Set.diff inType inEnv
@@ -87,5 +95,5 @@ generalize env t =
 {-| Variables that are not bound by the type scheme.
 -}
 freeVariables : Scheme -> Set Int
-freeVariables ( generic, t ) =
+freeVariables ( generic, ( _, t ) ) =
     Set.diff (Type.variables t) (Set.fromList generic)

@@ -3,8 +3,8 @@ module Infer.ConstraintGen exposing (..)
 import Dict exposing (Dict)
 import Infer.InternalMonad exposing (..)
 import Infer.Monad as External
-import Infer.Scheme exposing (Environment, Scheme, freshTypevar, generalize, instantiate)
-import Infer.Type as Type exposing (($), Type(..))
+import Infer.Scheme exposing (Environment, Scheme, generalize, instantiate)
+import Infer.Type as Type exposing (($), Type)
 
 
 type alias Constraint =

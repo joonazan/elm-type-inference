@@ -11,7 +11,7 @@ import Infer.Expression exposing (Expression(..))
 import Infer.InternalMonad exposing (..)
 import Infer.Monad as External
 import Infer.Scheme exposing (Environment, Scheme, generalize)
-import Infer.Type as Type exposing (($), Substitution, Type(..), substitute)
+import Infer.Type as Type exposing (($), Substitution, Type, RawType(..), substitute)
 
 
 {-| Returns a computation that yields the type of the input expression
@@ -54,9 +54,11 @@ substituteConstraint substitution ( l, r ) =
         ( f l, f r )
 
 
+freshTypevar : Monad RawType
 freshTypevar =
-    Infer.Scheme.freshTypevar
+    Infer.Scheme.freshInt
         |> fromExternal
+        |> map TAny
 
 
 generateConstraints : Environment -> Expression -> Monad ( Type, List Constraint )
@@ -71,9 +73,9 @@ generateConstraints environment exp =
 
         Call function argument ->
             map3
-                (\this ( f, fc ) ( a, ac ) ->
-                    ( this
-                    , fc ++ ac ++ [ ( f, TArrow a this ) ]
+                (\this ( f, fc ) ( ( aTC, a ), ac ) ->
+                    ( ( Dict.empty, this )
+                    , fc ++ ac ++ [ ( f, ( aTC, TArrow a this ) ) ]
                     )
                 )
                 freshTypevar
@@ -84,10 +86,10 @@ generateConstraints environment exp =
             freshTypevar
                 |> andThen
                     (\argType ->
-                        generateConstraints (extend environment argument argType) body
+                        generateConstraints (extend environment argument ( Dict.empty, argType )) body
                             |> map
-                                (\( bodyType, bodyCons ) ->
-                                    ( TArrow argType bodyType, bodyCons )
+                                (\( ( bodyTC, bodyType ), bodyCons ) ->
+                                    ( ( bodyTC, TArrow argType bodyType ), bodyCons )
                                 )
                     )
 
@@ -101,7 +103,7 @@ generateConstraints environment exp =
             generateConstraints environment exp
                 |> map
                     (\( typ, constraints ) ->
-                        ( typ, constraints ++ [ ( TAny tag, typ ) ] )
+                        ( typ, constraints ++ [ ( ( Dict.empty, TAny tag ), typ ) ] )
                     )
 
 
@@ -109,7 +111,7 @@ addBindingGroupToEnv : List ( String, Expression ) -> Environment -> Monad Envir
 addBindingGroupToEnv bindings origEnv =
     let
         bindings_ =
-            List.map (\( n, e ) -> map (\tv -> ( n, e, tv )) freshTypevar) bindings
+            List.map (\( n, e ) -> map (\tv -> ( n, e, ( Dict.empty, tv ) )) freshTypevar) bindings
                 |> combine
 
         extendedEnv =
