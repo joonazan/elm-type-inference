@@ -17,7 +17,7 @@ import Infer.Type as Type exposing (($), Substitution, Type, RawType(..), substi
 {-| Returns a computation that yields the type of the input expression
 with the specified environment.
 -}
-typeOf : Environment -> Expression -> External.Monad ( Type, Type -> Type )
+typeOf : Environment -> Expression -> External.Monad ( Type, Substitution )
 typeOf env exp =
     generateConstraints env exp
         |> andThen
@@ -26,7 +26,6 @@ typeOf env exp =
                     |> Result.map (\s -> ( Type.substitute s t, s ))
                     |> External.fromResult
             )
-        |> External.map (Tuple.mapSecond (\s -> Type.substitute s))
 
 
 solve : Substitution -> List Constraint -> Result String Substitution
