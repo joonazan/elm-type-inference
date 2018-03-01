@@ -1,4 +1,4 @@
-module Tests exposing (typeInference)
+module Tests exposing (typeInference, regressions)
 
 import Dict
 import Expect
@@ -152,7 +152,34 @@ typeInference =
                     )
                 )
                 (Ok <| unconstrained <| TOpaque "Tuple" [ Type.int, Type.string ])
-        , test "recursive type error when there should be none" <|
+        , test "spies on lets should work" <|
+            variablesDiffer
+                (Infer.typeOf
+                    (Dict.singleton "Just"
+                        ( [ 1 ], unconstrained <| TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ]) )
+                    )
+                    (Let [ ( "x", Spy (Name "Just") 900 ) ] (Name "x"))
+                    |> Infer.finalValue 0
+                    |> Result.map Tuple.second
+                    |> Result.toMaybe
+                    |> Maybe.andThen (Dict.get 900)
+                    |> Maybe.withDefault (unconstrained <| TAny 1)
+                )
+                (unconstrained (TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ])))
+        , test "number should propagate" <|
+            equal
+                (typeOf
+                    (Dict.singleton "+" ( [ 1 ], ( Dict.singleton 1 Number, (TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1)) ) ))
+                    (Lambda "x" <| Call (Call (Name "+") (Name "x")) (Name "x"))
+                )
+                (Ok ( Dict.singleton 1 Number, TArrow (TAny 1) (TAny 1) ))
+        ]
+
+
+regressions : Test
+regressions =
+    describe "Regression tests"
+        [ test "recursive type error when there should be none" <|
             equal
                 (typeOf
                     testEnv
@@ -169,26 +196,43 @@ typeInference =
                 )
             <|
                 Ok (Tuple.second arith)
-        , test "spies on lets should work" <|
-            variablesDiffer
-                (Infer.typeOf
-                    (Dict.singleton "Just"
-                        ( [ 1 ], unconstrained <| TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ]) )
-                    )
-                    (Let [ ( "x", Spy (Name "Just") 900 ) ] (Name "x"))
-                    |> Infer.finalValue 0
-                    |> Result.map Tuple.second
-                    |> Result.withDefault identity
-                    |> (\x -> x (unconstrained <| TAny 900))
-                )
-                (unconstrained (TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ])))
-        , test "number should propagate" <|
-            equal
-                (typeOf
-                    (Dict.singleton "+" ( [ 1 ], ( Dict.singleton 1 Number, (TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1)) ) ))
-                    (Lambda "x" <| Call (Call (Name "+") (Name "x")) (Name "x"))
-                )
-                (Ok ( Dict.singleton 1 Number, TArrow (TAny 1) (TAny 1) ))
+        , test "same type variable should have same constraints" <|
+            (\() ->
+                let
+                    env =
+                        Dict.fromList
+                            [ ( "<"
+                              , ( [ 1 ]
+                                , ( Dict.singleton 1 Comparable
+                                  , TArrow (TAny 1) (TArrow (TAny 1) Type.bool)
+                                  )
+                                )
+                              )
+                            , ( "++"
+                              , ( [ 1 ]
+                                , ( Dict.singleton 1 Appendable
+                                  , TArrow (TAny 1) (TArrow (TAny 1) (TAny 1))
+                                  )
+                                )
+                              )
+                            ]
+
+                    empty =
+                        Literal << unconstrained << TAny
+
+                    exp =
+                        Call
+                            (Call (Name "<") (Call (Call (Name "++") (Spy (empty 1) 2)) (empty 3)))
+                            (Spy (empty 4) 5)
+                in
+                    Infer.typeOf env exp
+                        |> Infer.finalValue 100
+                        |> Result.map
+                            (\( _, subs ) ->
+                                Expect.equal (Dict.get 2 subs) (Dict.get 5 subs)
+                            )
+                        |> Result.withDefault (Expect.fail "did not type")
+            )
         ]
 
 

@@ -321,7 +321,13 @@ unify ( acs, at ) ( bcs, bt ) =
                                 Ok Dict.empty
                         )
                             |> Result.map
-                                (\c -> (Dict.singleton id ( c, TAny id2 )))
+                                (\c ->
+                                    (Dict.fromList
+                                        [ ( id, ( c, TAny id2 ) )
+                                        , ( id2, ( c, TAny id2 ) )
+                                        ]
+                                    )
+                                )
 
                 ( TAny id, x ) ->
                     bind id x
