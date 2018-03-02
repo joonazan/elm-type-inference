@@ -144,7 +144,6 @@ isAppendable t =
 
 isComparable : RawType -> Bool
 isComparable t =
-    -- TODO: add tuple
     List.member t [ int, float, char, string ]
         || isList t
         || isTuple t
@@ -162,8 +161,12 @@ isList t =
 
 isTuple : RawType -> Bool
 isTuple t =
-    -- TODO
-    False
+    case t of
+        TOpaque name _ ->
+            name == ".Tuple"
+
+        _ ->
+            False
 
 
 {-| String
