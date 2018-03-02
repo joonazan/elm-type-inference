@@ -1,6 +1,7 @@
 module Infer.Type
     exposing
         ( RawType(..)
+        , (=>)
         , Type
         , unconstrained
         , Constraint(..)
@@ -22,7 +23,7 @@ module Infer.Type
 
 #
 
-@docs Type, RawType, Constraint, unconstrained
+@docs Type, RawType, (=>), Constraint, unconstrained
 
 
 # Constructors for common primitive types
@@ -63,6 +64,14 @@ type RawType
     | TRecord (Dict String RawType)
     | TOpaque String (List RawType)
     | TAny Int
+
+
+{-| The fat arrow is convenient as an infix version of TArrow.
+-}
+(=>) : RawType -> RawType -> RawType
+(=>) =
+    TArrow
+infixr 9 =>
 
 
 isTAnyWithId : Int -> RawType -> Bool

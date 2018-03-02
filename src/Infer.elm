@@ -11,7 +11,7 @@ import Infer.Expression exposing (Expression(..))
 import Infer.InternalMonad exposing (..)
 import Infer.Monad as External
 import Infer.Scheme exposing (Environment, Scheme, generalize)
-import Infer.Type as Type exposing (($), Substitution, Type, RawType(..), substitute)
+import Infer.Type as Type exposing (($), Substitution, Type, RawType(..), (=>), substitute)
 
 
 {-| Returns a computation that yields the type of the input expression
@@ -74,7 +74,7 @@ generateConstraints environment exp =
             map3
                 (\this ( f, fc ) ( ( aTC, a ), ac ) ->
                     ( ( Dict.empty, this )
-                    , fc ++ ac ++ [ ( f, ( aTC, TArrow a this ) ) ]
+                    , fc ++ ac ++ [ ( f, ( aTC, a => this ) ) ]
                     )
                 )
                 freshTypevar
@@ -88,7 +88,7 @@ generateConstraints environment exp =
                         generateConstraints (extend environment argument ( Dict.empty, argType )) body
                             |> map
                                 (\( ( bodyTC, bodyType ), bodyCons ) ->
-                                    ( ( bodyTC, TArrow argType bodyType ), bodyCons )
+                                    ( ( bodyTC, argType => bodyType ), bodyCons )
                                 )
                     )
 

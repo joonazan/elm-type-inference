@@ -6,7 +6,7 @@ import Infer
 import Infer.Expression exposing (Expression(..))
 import Infer.Monad as Infer
 import Infer.Scheme exposing (generalize, instantiate)
-import Infer.Type as Type exposing (Type, unconstrained, RawType(..), Constraint(..))
+import Infer.Type as Type exposing (Type, unconstrained, RawType(..), (=>), Constraint(..))
 import Test exposing (..)
 
 
@@ -57,7 +57,7 @@ typeInference =
         , test "identity construction" <|
             equal
                 (typeOf
-                    (Dict.singleton "identity" ( [ 1 ], unconstrained <| TArrow (TAny 1) (TAny 1) ))
+                    (Dict.singleton "identity" ( [ 1 ], unconstrained <| TAny 1 => TAny 1 ))
                     (Call (Name "identity")
                         (Call (Name "identity")
                             stringLiteral
@@ -69,7 +69,7 @@ typeInference =
         , test "string concat" <|
             equal
                 (typeOf
-                    (Dict.singleton "(++)" ( [ 1 ], unconstrained <| TArrow Type.string (TArrow Type.string Type.string) ))
+                    (Dict.singleton "(++)" ( [ 1 ], unconstrained <| Type.string => Type.string => Type.string ))
                     (Call
                         (Call (Name "(++)")
                             stringLiteral
@@ -156,7 +156,7 @@ typeInference =
             variablesDiffer
                 (Infer.typeOf
                     (Dict.singleton "Just"
-                        ( [ 1 ], unconstrained <| TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ]) )
+                        ( [ 1 ], unconstrained <| TAny 1 => TOpaque "Maybe" [ TAny 1 ] )
                     )
                     (Let [ ( "x", Spy (Name "Just") 900 ) ] (Name "x"))
                     |> Infer.finalValue 0
@@ -165,14 +165,16 @@ typeInference =
                     |> Maybe.andThen (Dict.get 900)
                     |> Maybe.withDefault (unconstrained <| TAny 1)
                 )
-                (unconstrained (TArrow (TAny 1) (TOpaque "Maybe" [ TAny 1 ])))
+                (unconstrained (TAny 1 => TOpaque "Maybe" [ TAny 1 ]))
         , test "number should propagate" <|
             equal
                 (typeOf
-                    (Dict.singleton "+" ( [ 1 ], ( Dict.singleton 1 Number, (TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1)) ) ))
+                    (Dict.singleton "+"
+                        ( [ 1 ], ( Dict.singleton 1 Number, (TAny 1 => TAny 1 => TAny 1) ) )
+                    )
                     (Lambda "x" <| Call (Call (Name "+") (Name "x")) (Name "x"))
                 )
-                (Ok ( Dict.singleton 1 Number, TArrow (TAny 1) (TAny 1) ))
+                (Ok ( Dict.singleton 1 Number, TAny 1 => TAny 1 ))
         ]
 
 
@@ -204,14 +206,14 @@ regressions =
                             [ ( "<"
                               , ( [ 1 ]
                                 , ( Dict.singleton 1 Comparable
-                                  , TArrow (TAny 1) (TArrow (TAny 1) Type.bool)
+                                  , TAny 1 => TAny 1 => Type.bool
                                   )
                                 )
                               )
                             , ( "++"
                               , ( [ 1 ]
                                 , ( Dict.singleton 1 Appendable
-                                  , TArrow (TAny 1) (TArrow (TAny 1) (TAny 1))
+                                  , TAny 1 => TAny 1 => TAny 1
                                   )
                                 )
                               )
@@ -244,14 +246,15 @@ testEnv =
     Dict.fromList
         [ ( "if"
           , ( [ 1 ]
-            , unconstrained <|
-                TArrow Type.bool <|
-                    TArrow (TAny 1) <|
-                        TArrow (TAny 1) (TAny 1)
+            , unconstrained <| Type.bool => TAny 1 => TAny 1 => TAny 1
             )
           )
         , ( "+", arith )
-        , ( "tuple2", ( [ 1, 2 ], unconstrained <| TArrow (TAny 1) (TArrow (TAny 2) (TOpaque "Tuple" [ TAny 1, TAny 2 ])) ) )
+        , ( "tuple2"
+          , ( [ 1, 2 ]
+            , unconstrained <| TAny 1 => TAny 2 => TOpaque "Tuple" [ TAny 1, TAny 2 ]
+            )
+          )
         ]
 
 
@@ -260,4 +263,4 @@ tuple a b =
 
 
 arith =
-    ( [ 1 ], unconstrained <| TArrow (TAny 1) <| TArrow (TAny 1) (TAny 1) )
+    ( [ 1 ], unconstrained <| TAny 1 => TAny 1 => TAny 1 )
