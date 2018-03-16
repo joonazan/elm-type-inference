@@ -142,31 +142,41 @@ isAppendable t =
     t == string || isList t
 
 
-isComparable : RawType -> Bool
-isComparable t =
-    List.member t [ int, float, char, string ]
-        || isList t
-        || isTuple t
-
-
 isList : RawType -> Bool
 isList t =
     case t of
         TOpaque name _ ->
-            name == ".List"
+            name == listName
 
         _ ->
             False
 
 
-isTuple : RawType -> Bool
-isTuple t =
+isComparable : RawType -> Bool
+isComparable t =
+    List.member t [ int, float, char, string ]
+        || isComparableCollection t
+
+
+isComparableCollection : RawType -> Bool
+isComparableCollection t =
     case t of
-        TOpaque name _ ->
-            name == ".Tuple"
+        TOpaque name args ->
+            (name == listName || name == tupleName)
+                && List.all isComparable args
 
         _ ->
             False
+
+
+listName : String
+listName =
+    ".List"
+
+
+tupleName : String
+tupleName =
+    ".Tuple"
 
 
 {-| String

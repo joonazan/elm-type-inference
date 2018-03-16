@@ -45,6 +45,7 @@ err e =
     State.state (Err e)
 
 
+fromExternal : Infer.Monad.Monad a -> Monad a
 fromExternal =
     Infer.Monad.map (\x -> ( x, Dict.empty ))
 
