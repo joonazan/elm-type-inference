@@ -1,21 +1,22 @@
 module Infer.Type
     exposing
-        ( RawType(..)
+        ( ($)
         , (=>)
-        , Type
-        , unconstrained
         , Constraint(..)
-        , string
-        , char
-        , bool
-        , int
-        , float
-        , toString
-        , variables
-        , unify
-        , substitute
+        , RawType(..)
         , Substitution
-        , ($)
+        , Type
+        , bool
+        , char
+        , float
+        , int
+        , list
+        , string
+        , substitute
+        , toString
+        , unconstrained
+        , unify
+        , variables
         )
 
 {-|
@@ -111,14 +112,14 @@ unifyConstraints a b =
         unordered x y =
             a == x && b == y || a == y && b == x
     in
-        if a == b then
-            Ok a
-        else if unordered Number Comparable then
-            Ok Number
-        else if unordered Appendable Comparable then
-            Ok CompAppend
-        else
-            Err "failed to unify constraints"
+    if a == b then
+        Ok a
+    else if unordered Number Comparable then
+        Ok Number
+    else if unordered Appendable Comparable then
+        Ok CompAppend
+    else
+        Err "failed to unify constraints"
 
 
 satisfies : RawType -> Constraint -> Bool
@@ -214,6 +215,13 @@ float =
     TOpaque ".Float" []
 
 
+{-| List
+-}
+list : RawType -> RawType
+list t =
+    TOpaque ".List" [ t ]
+
+
 {-| Textual representation of a type
 -}
 toString : Dict Int Constraint -> RawType -> String
@@ -242,9 +250,9 @@ toString cs =
                     Dict.toList d
                         |> List.map (\( n, t ) -> n ++ " : " ++ toString_ t)
                         |> String.join ", "
-                        |> \x -> "{" ++ x ++ "}"
+                        |> (\x -> "{" ++ x ++ "}")
     in
-        toString_
+    toString_
 
 
 constraintName : Maybe Constraint -> String
@@ -328,7 +336,7 @@ unify ( acs, at ) ( bcs, bt ) =
                     if id == id2 then
                         Ok Dict.empty
                     else
-                        (case ( (Dict.get id acs), (Dict.get id2 bcs) ) of
+                        (case ( Dict.get id acs, Dict.get id2 bcs ) of
                             ( Just a, Just b ) ->
                                 unifyConstraints a b
                                     |> Result.map (Dict.singleton id2)
@@ -344,11 +352,10 @@ unify ( acs, at ) ( bcs, bt ) =
                         )
                             |> Result.map
                                 (\c ->
-                                    (Dict.fromList
+                                    Dict.fromList
                                         [ ( id, ( c, TAny id2 ) )
                                         , ( id2, ( c, TAny id2 ) )
                                         ]
-                                    )
                                 )
 
                 ( TAny id, x ) ->
@@ -379,7 +386,7 @@ unify ( acs, at ) ( bcs, bt ) =
         constraints =
             Dict.union acs bcs
     in
-        unify_ at bt
+    unify_ at bt
 
 
 unifyMany : List Type -> List Type -> Result String Substitution
@@ -437,29 +444,29 @@ substitute subs ( cs, t ) =
                 TArrow h t ->
                     let
                         ( csh, th ) =
-                            (substitute_ h)
+                            substitute_ h
 
                         ( cst, tt ) =
-                            (substitute_ t)
+                            substitute_ t
                     in
-                        ( Dict.union csh cst, TArrow th tt )
+                    ( Dict.union csh cst, TArrow th tt )
 
                 TOpaque name types ->
                     let
                         res =
                             List.map substitute_ types
                     in
-                        ( List.foldl (Tuple.first >> Dict.union) Dict.empty res
-                        , TOpaque name (List.map Tuple.second res)
-                        )
+                    ( List.foldl (Tuple.first >> Dict.union) Dict.empty res
+                    , TOpaque name (List.map Tuple.second res)
+                    )
 
                 TRecord fields ->
                     let
                         res =
                             Dict.map (always substitute_) fields
                     in
-                        ( Dict.foldl (always (Tuple.first >> Dict.union)) Dict.empty res
-                        , TRecord (Dict.map (always Tuple.second) res)
-                        )
+                    ( Dict.foldl (always (Tuple.first >> Dict.union)) Dict.empty res
+                    , TRecord (Dict.map (always Tuple.second) res)
+                    )
     in
-        substitute_ t
+    substitute_ t
