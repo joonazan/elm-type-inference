@@ -29,7 +29,7 @@ module Infer.Type
 
 # Constructors for common primitive types
 
-@docs string, char, bool, int, float
+@docs string, char, bool, int, float, list
 
 @docs toString
 
