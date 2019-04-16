@@ -1,44 +1,65 @@
 module Ast.Translate exposing (expression)
 
-import Ast.Expression as AstExp
-import Ast.Statement
+import Ast.Expression as AstExp exposing (..)
 import Infer.Expression as InferExp
 import Infer.Type as Type exposing (Type, unconstrained)
 
 
-expression : AstExp.Expression -> InferExp.Expression
+type alias ExMeta =
+    {}
+
+
+expression : Expression -> InferExp.Expression
 expression e =
     case e of
-        AstExp.Let bindingList body ->
+        Let bindingList body ->
             InferExp.Let (bindings bindingList) (expression body)
 
-        AstExp.Variable [ name ] ->
+        Variable [ name ] ->
             InferExp.Name name
 
-        AstExp.Integer _ ->
+        Integer _ ->
             literal Type.int
 
-        AstExp.String _ ->
+        Float _ ->
+            literal Type.float
+
+        String _ ->
             literal Type.string
+
+        --List elems ->
+        --    literal <| Type.list (getCommonType elems)
+        -- Lambdas
+        Lambda ((Variable [ only ]) :: []) body ->
+            InferExp.Lambda only (expression body)
+
+        Lambda ((Variable [ first ]) :: rest) body ->
+            InferExp.Lambda first (expression <| Lambda rest body)
+
+        -- Aplication
+        Application l r ->
+            InferExp.Call (expression l) (expression r)
 
         _ ->
             Debug.crash "Not implemented"
 
 
-bindings : List ( AstExp.Expression, AstExp.Expression ) -> List ( String, InferExp.Expression )
+bindings :
+    List ( Expression, Expression )
+    -> List ( String, InferExp.Expression )
 bindings list =
     list
         |> List.map
             (\binding ->
                 case binding of
-                    ( AstExp.Variable [ name ], r ) ->
+                    ( Variable [ name ], r ) ->
                         ( name, expression r )
 
                     e ->
-                        Debug.crash (toString e ++ " is not a support binding type")
+                        Debug.crash (toString e ++ " is not a supported variable definition yet")
             )
 
 
 literal : Type.RawType -> InferExp.Expression
 literal t =
-    InferExp.Literal <| unconstrained t
+    InferExp.Literal (unconstrained t)
