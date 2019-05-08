@@ -3,6 +3,7 @@ module TranslationTests exposing (errors, lets, literals)
 import Ast
 import Ast.Statement as Statement
 import Ast.Translate as Translate
+import Debug exposing (log)
 import Dict
 import Expect exposing (equal)
 import Infer
@@ -64,8 +65,11 @@ code input t =
         |> Result.andThen
             (\res ->
                 case res of
-                    ( _, _, [ Statement.FunctionDeclaration "a" [] body ] ) ->
-                        Ok body
+                    ( _, lol, [ Statement.FunctionDeclaration "a" [] body ] ) ->
+                        log "" lol
+                            |> (\_ ->
+                                    Ok body
+                               )
 
                     _ ->
                         Err "Imparsable code"

@@ -1,12 +1,13 @@
-module Tests exposing (typeInference, regressions)
+module Tests exposing (regressions, typeInference)
 
+import Debug exposing (log)
 import Dict
 import Expect
 import Infer
 import Infer.Expression exposing (Expression(..))
 import Infer.Monad as Infer
 import Infer.Scheme exposing (generalize, instantiate)
-import Infer.Type as Type exposing (Type, unconstrained, RawType(..), (=>), Constraint(..))
+import Infer.Type as Type exposing ((=>), Constraint(..), RawType(..), Type, unconstrained)
 import Test exposing (..)
 
 
@@ -170,7 +171,7 @@ typeInference =
             equal
                 (typeOf
                     (Dict.singleton "+"
-                        ( [ 1 ], ( Dict.singleton 1 Number, (TAny 1 => TAny 1 => TAny 1) ) )
+                        ( [ 1 ], ( Dict.singleton 1 Number, TAny 1 => TAny 1 => TAny 1 ) )
                     )
                     (Lambda "x" <| Call (Call (Name "+") (Name "x")) (Name "x"))
                 )
@@ -199,7 +200,7 @@ regressions =
             <|
                 Ok (Tuple.second arith)
         , test "same type variable should have same constraints" <|
-            (\() ->
+            \() ->
                 let
                     env =
                         Dict.fromList
@@ -227,14 +228,13 @@ regressions =
                             (Call (Name "<") (Call (Call (Name "++") (Spy (empty 1) 2)) (empty 3)))
                             (Spy (empty 4) 5)
                 in
-                    Infer.typeOf env exp
-                        |> Infer.finalValue 100
-                        |> Result.map
-                            (\( _, subs ) ->
-                                Expect.equal (Dict.get 2 subs) (Dict.get 5 subs)
-                            )
-                        |> Result.withDefault (Expect.fail "did not type")
-            )
+                Infer.typeOf env exp
+                    |> Infer.finalValue 100
+                    |> Result.map
+                        (\( _, subs ) ->
+                            Expect.equal (Dict.get 2 subs) (Dict.get 5 subs)
+                        )
+                    |> Result.withDefault (Expect.fail "did not type")
         ]
 
 
