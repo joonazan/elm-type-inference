@@ -3,11 +3,10 @@ module TranslationTests exposing (errors, lets, literals)
 import Ast
 import Ast.Statement as Statement
 import Ast.Translate as Translate
-import Debug exposing (log)
 import Dict
 import Expect exposing (equal)
 import Infer
-import Infer.Expression as Expression exposing (Expression)
+import Infer.Expression as Expression exposing (Expression, MExp)
 import Infer.Monad as Infer
 import Infer.Scheme
 import Infer.Type as Type exposing ((=>), Constraint(..), RawType(..), Type, unconstrained)
@@ -51,7 +50,7 @@ errors =
 --- HELPERS ---
 
 
-typeOf : Infer.Scheme.Environment -> Expression -> Result String Type
+typeOf : Infer.Scheme.Environment -> MExp -> Result String Type
 typeOf env exp =
     Infer.typeOf env exp
         |> Infer.finalValue 0
@@ -65,11 +64,8 @@ code input t =
         |> Result.andThen
             (\res ->
                 case res of
-                    ( _, lol, [ Statement.FunctionDeclaration "a" [] body ] ) ->
-                        log "" lol
-                            |> (\_ ->
-                                    Ok body
-                               )
+                    ( _, _, [ ( Statement.FunctionDeclaration "a" [] body, _ ) ] ) ->
+                        Ok body
 
                     _ ->
                         Err "Imparsable code"
@@ -87,7 +83,7 @@ errCode input error =
         |> Result.andThen
             (\res ->
                 case res of
-                    ( _, _, [ Statement.FunctionDeclaration "a" [] body ] ) ->
+                    ( _, _, [ (Statement.FunctionDeclaration "a" [] body, _) ] ) ->
                         Ok body
 
                     _ ->

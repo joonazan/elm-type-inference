@@ -1,18 +1,18 @@
 module Tests exposing (regressions, typeInference)
 
-import Debug exposing (log)
 import Dict
 import Expect
+import Helpers exposing (..)
 import Infer
-import Infer.Expression exposing (Expression(..))
 import Infer.Monad as Infer
-import Infer.Scheme exposing (generalize, instantiate)
+import Infer.Scheme exposing (Environment, generalize, instantiate)
 import Infer.Type as Type exposing ((=>), Constraint(..), RawType(..), Type, unconstrained)
 import Test exposing (..)
 
 
+typeOf :  Environment -> ExpressionSansMeta -> Result String Type
 typeOf env exp =
-    Infer.typeOf env exp
+    Infer.typeOf env (fakeMeta exp)
         |> Infer.finalValue 0
         |> Result.map Tuple.first
 
@@ -41,11 +41,11 @@ isTAny x =
 
 
 stringLiteral =
-    Literal <| unconstrained Type.string
+    LiteralSM <| unconstrained Type.string
 
 
 intLiteral =
-    Literal <| unconstrained Type.int
+    LiteralSM <| unconstrained Type.int
 
 
 typeInference : Test
@@ -59,8 +59,8 @@ typeInference =
             equal
                 (typeOf
                     (Dict.singleton "identity" ( [ 1 ], unconstrained <| TAny 1 => TAny 1 ))
-                    (Call (Name "identity")
-                        (Call (Name "identity")
+                    (CallSM (NameSM "identity")
+                        (CallSM (NameSM "identity")
                             stringLiteral
                         )
                     )
@@ -71,8 +71,8 @@ typeInference =
             equal
                 (typeOf
                     (Dict.singleton "(++)" ( [ 1 ], unconstrained <| Type.string => Type.string => Type.string ))
-                    (Call
-                        (Call (Name "(++)")
+                    (CallSM
+                        (CallSM (NameSM "(++)")
                             stringLiteral
                         )
                         stringLiteral
@@ -84,9 +84,9 @@ typeInference =
             equal
                 (typeOf
                     Dict.empty
-                    (Let
+                    (LetSM
                         [ ( "x", stringLiteral ) ]
-                        (Name "x")
+                        (NameSM "x")
                     )
                 )
             <|
@@ -95,15 +95,15 @@ typeInference =
             equal
                 (typeOf
                     testEnv
-                    (Let
+                    (LetSM
                         [ ( "f"
-                          , Lambda "x" <|
-                                if_ (Literal <| unconstrained Type.bool)
-                                    (Call (Name "f") (Call (Call (Name "+") (Name "x")) (Name "x")))
+                          , LambdaSM "x" <|
+                                if_ (LiteralSM <| unconstrained Type.bool)
+                                    (CallSM (NameSM "f") (CallSM (CallSM (NameSM "+") (NameSM "x")) (NameSM "x")))
                                     stringLiteral
                           )
                         ]
-                        (Call (Name "f") intLiteral)
+                        (CallSM (NameSM "f") intLiteral)
                     )
                 )
                 (Ok <| unconstrained Type.string)
@@ -111,18 +111,18 @@ typeInference =
             equal
                 (typeOf
                     testEnv
-                    (Let
+                    (LetSM
                         [ ( "f"
-                          , Lambda "x" <|
-                                if_ (Literal <| unconstrained Type.bool)
-                                    (Call (Name "g") (Call (Call (Name "+") (Name "x")) (Name "x")))
+                          , LambdaSM "x" <|
+                                if_ (LiteralSM <| unconstrained Type.bool)
+                                    (CallSM (NameSM "g") (CallSM (CallSM (NameSM "+") (NameSM "x")) (NameSM "x")))
                                     stringLiteral
                           )
                         , ( "g"
-                          , Name "f"
+                          , NameSM "f"
                           )
                         ]
-                        (Call (Name "f") intLiteral)
+                        (CallSM (NameSM "f") intLiteral)
                     )
                 )
                 (Ok <| unconstrained Type.string)
@@ -130,12 +130,12 @@ typeInference =
             equal
                 (typeOf
                     testEnv
-                    (Let
-                        [ ( "id", Lambda "x" <| Name "x" )
+                    (LetSM
+                        [ ( "id", LambdaSM "x" <| NameSM "x" )
                         ]
                         (tuple
-                            (Call (Name "id") intLiteral)
-                            (Call (Name "id") stringLiteral)
+                            (CallSM (NameSM "id") intLiteral)
+                            (CallSM (NameSM "id") stringLiteral)
                         )
                     )
                 )
@@ -144,12 +144,12 @@ typeInference =
             equal
                 (typeOf
                     testEnv
-                    (Let
-                        [ ( "id", Lambda "x" <| Name "x" )
-                        , ( "a", Call (Name "id") intLiteral )
-                        , ( "b", Call (Name "id") stringLiteral )
+                    (LetSM
+                        [ ( "id", LambdaSM "x" <| NameSM "x" )
+                        , ( "a", CallSM (NameSM "id") intLiteral )
+                        , ( "b", CallSM (NameSM "id") stringLiteral )
                         ]
-                        (tuple (Name "a") (Name "b"))
+                        (tuple (NameSM "a") (NameSM "b"))
                     )
                 )
                 (Ok <| unconstrained <| TOpaque "Tuple" [ Type.int, Type.string ])
@@ -159,7 +159,7 @@ typeInference =
                     (Dict.singleton "Just"
                         ( [ 1 ], unconstrained <| TAny 1 => TOpaque "Maybe" [ TAny 1 ] )
                     )
-                    (Let [ ( "x", Spy (Name "Just") 900 ) ] (Name "x"))
+                    (fakeMeta <| LetSM [ ( "x", SpySM (NameSM "Just") 900 ) ] (NameSM "x"))
                     |> Infer.finalValue 0
                     |> Result.map Tuple.second
                     |> Result.toMaybe
@@ -173,7 +173,7 @@ typeInference =
                     (Dict.singleton "+"
                         ( [ 1 ], ( Dict.singleton 1 Number, TAny 1 => TAny 1 => TAny 1 ) )
                     )
-                    (Lambda "x" <| Call (Call (Name "+") (Name "x")) (Name "x"))
+                    (LambdaSM "x" <| CallSM (CallSM (NameSM "+") (NameSM "x")) (NameSM "x"))
                 )
                 (Ok ( Dict.singleton 1 Number, TAny 1 => TAny 1 ))
         ]
@@ -187,9 +187,9 @@ regressions =
                 (typeOf
                     testEnv
                     (if_
-                        (Literal <| unconstrained Type.bool)
-                        (Name "+")
-                        (Name "+")
+                        (LiteralSM <| unconstrained Type.bool)
+                        (NameSM "+")
+                        (NameSM "+")
                     )
                     |> Result.andThen
                         (generalize Dict.empty
@@ -221,12 +221,12 @@ regressions =
                             ]
 
                     empty =
-                        Literal << unconstrained << TAny
+                        LiteralSM << unconstrained << TAny
 
                     exp =
-                        Call
-                            (Call (Name "<") (Call (Call (Name "++") (Spy (empty 1) 2)) (empty 3)))
-                            (Spy (empty 4) 5)
+                        fakeMeta <| CallSM
+                            (CallSM (NameSM "<") (CallSM (CallSM (NameSM "++") (SpySM (empty 1) 2)) (empty 3)))
+                            (SpySM (empty 4) 5)
                 in
                 Infer.typeOf env exp
                     |> Infer.finalValue 100
@@ -239,7 +239,7 @@ regressions =
 
 
 if_ a b c =
-    Call (Call (Call (Name "if") a) b) c
+    CallSM (CallSM (CallSM (NameSM "if") a) b) c
 
 
 testEnv =
@@ -259,7 +259,7 @@ testEnv =
 
 
 tuple a b =
-    Call (Call (Name "tuple2") a) b
+    CallSM (CallSM (NameSM "tuple2") a) b
 
 
 arith =

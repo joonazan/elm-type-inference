@@ -1,8 +1,68 @@
-module Helpers exposing (checkLetCase, checkListAndExp, checkListUniqueIds, checkNameId, checkNameListUniqueIds, checkRecordsIds, generateStatementIds, generateStatementsIds, hasUniqueIds, hasUniqueIds_, listHasUniqueIds, listHasUniqueIds_, statementHasUniqueIds, statementsHaveUniqueIds)
+module Helpers exposing (.. )
 
 import Ast.Statement exposing (Statement, StatementBase(..))
 import Infer.Expression exposing (..)
+import Infer.Type exposing (Type)
 import Set exposing (Set)
+
+
+type ExpressionSansMeta
+    = LiteralSM Type
+    | LambdaSM String ExpressionSansMeta
+    | CallSM ExpressionSansMeta ExpressionSansMeta
+    | LetSM (List ( String, ExpressionSansMeta )) ExpressionSansMeta
+    | NameSM String
+    | SpySM ExpressionSansMeta Int
+
+
+dropMeta : MExp -> ExpressionSansMeta
+dropMeta ( e, _ ) =
+    case e of
+        Literal t ->
+            LiteralSM t
+
+        Lambda s exp ->
+            LambdaSM s (dropMeta exp)
+
+        Call e1 e2 ->
+            CallSM (dropMeta e1) (dropMeta e2)
+
+        Let list expression ->
+            LetSM
+                (List.map (\( s, exp ) -> ( s, dropMeta exp )) list)
+                (dropMeta expression)
+
+        Name s ->
+            NameSM s
+
+        Spy exp i ->
+            SpySM (dropMeta exp) i
+
+
+fakeMeta : ExpressionSansMeta -> MExp
+fakeMeta e =
+    let
+        addMeta x =
+            ( x, { id = -1, line = -1, column = -1 } )
+    in
+    case e of
+        LiteralSM t ->
+            addMeta <| Literal t
+
+        LambdaSM s exp ->
+            addMeta <| Lambda s (fakeMeta exp)
+
+        CallSM e1 e2 ->
+            addMeta <| Call (fakeMeta e1) (fakeMeta e2)
+
+        LetSM list expression ->
+            addMeta <| Let (List.map (\( s, exp ) -> ( s, fakeMeta exp )) list) (fakeMeta expression)
+
+        NameSM s ->
+            addMeta <| Name s
+
+        SpySM exp i ->
+            addMeta <| Spy (fakeMeta exp) i
 
 
 checkListUniqueIds : List AstMExp -> Set Id -> Maybe (Set Id)
