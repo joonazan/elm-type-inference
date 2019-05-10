@@ -19,7 +19,7 @@ module Infer.Expression exposing
 -}
 
 import Ast.Expression
-import Ast.Helpers exposing (Column, Line, Name, WithMeta)
+import Ast.Common exposing (Column, Line, Name, WithMeta)
 import Infer.Type exposing (Type)
 
 

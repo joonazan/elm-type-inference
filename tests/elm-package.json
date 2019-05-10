@@ -16,7 +16,7 @@
         "elm-lang/html": "2.0.0 <= v < 3.0.0",
         "folkertdev/elm-state": "2.1.0 <= v < 3.0.0",
         "mgold/elm-random-pcg": "4.0.2 <= v < 5.0.0",
-        "Bogdanp/elm-ast": "9.0.0 <= v < 10.0.0"
+        "Bogdanp/elm-ast": "9.0.1 <= v < 10.0.0"
 
     },
     "dependency-sources": {

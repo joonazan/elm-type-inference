@@ -1,7 +1,7 @@
 module Ast.Translate exposing (expression)
 
 import Ast.Expression as AstExp exposing (..)
-import Ast.Helpers exposing (Name)
+import Ast.Common exposing (Name)
 import Infer.Expression as InferExp exposing (AstExpression(..), AstMExp, generateIds)
 import Infer.Type as Type exposing (Type, unconstrained)
 
