@@ -96,7 +96,7 @@ getId ( _, { id } ) =
     id
 
 
-genNameListIds : Id -> List Ast.Helpers.MName -> ( Id, List MName )
+genNameListIds : Id -> List Ast.Common.MName -> ( Id, List MName )
 genNameListIds newId =
     List.foldr (\( n, { line, column } ) ( accId, acc ) -> ( accId + 1, ( n, { id = accId, line = line, column = column } ) :: acc )) ( newId + 1, [] )
 
@@ -133,7 +133,7 @@ genTripleIds newId ( e1, e2, e3 ) =
     ( maxId, newE1, newE2, newE3 )
 
 
-genRecordsIds : Id -> List ( Ast.Helpers.MName, Ast.Expression.MExp ) -> ( Id, List ( MName, AstMExp ) )
+genRecordsIds : Id -> List ( Ast.Common.MName, Ast.Expression.MExp ) -> ( Id, List ( MName, AstMExp ) )
 genRecordsIds newId records =
     let
         ( names, exps ) =
