@@ -1,7 +1,7 @@
 module Ast.Translate exposing (expression)
 
-import Ast.Expression as AstExp exposing (..)
 import Ast.Common exposing (Name)
+import Ast.Expression as AstExp exposing (..)
 import Infer.Expression as InferExp exposing (AstExpression(..), AstMExp, generateIds)
 import Infer.Type as Type exposing (Type, unconstrained)
 
@@ -33,9 +33,22 @@ expression_ ( e, meta ) =
         EString _ ->
             ( literal Type.string, meta )
 
-        --List elems ->
-        --    literal <| Type.list (getCommonType elems)
-        -- Lambdas
+        EList elems ->
+            elems
+                |> List.foldr
+                    (\( x, m ) acc ->
+                        ( InferExp.Call
+                            ( InferExp.Call
+                                ( InferExp.Name "(::)", m )
+                                ( expression_ ( x, m ) )
+                            , m
+                            )
+                            acc
+                        , m
+                        )
+                    )
+                    ( literal <| Type.list (Type.TAny -1), meta )
+
         ELambda (( EVariable [ only ], _ ) :: []) body ->
             ( InferExp.Lambda only (expression_ body), meta )
 
