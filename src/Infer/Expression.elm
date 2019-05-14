@@ -145,7 +145,7 @@ genRecordsIds newId records =
         ( expsId, newExps ) =
             genListIds namesId exps
     in
-    ( expsId, List.map2 (\x y -> ( x, y )) newNames newExps )
+    ( expsId, List.map2 (,) newNames newExps )
 
 
 genLetCase : Id -> List ( Ast.Expression.MExp, Ast.Expression.MExp ) -> Ast.Expression.MExp -> ( Id, List ( AstMExp, AstMExp ), AstMExp )

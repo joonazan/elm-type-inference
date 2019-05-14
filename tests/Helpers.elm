@@ -1,4 +1,4 @@
-module Helpers exposing (.. )
+module Helpers exposing (..)
 
 import Ast.Statement exposing (Statement, StatementBase(..))
 import Infer.Expression exposing (..)
@@ -100,7 +100,7 @@ checkRecordsIds records ids =
         |> (\( names, exps ) ->
                 checkNameListUniqueIds names ids
                     |> Maybe.andThen
-                        (\newIds -> checkListUniqueIds exps newIds)
+                        (checkListUniqueIds exps)
            )
 
 
